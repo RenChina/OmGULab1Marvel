@@ -24,6 +24,9 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +42,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil3.compose.AsyncImage
+import com.example.marvel_app.data.HeroesRepositoryImplementation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +69,14 @@ fun MarvelApp() {
 
 @Composable
 fun HeroListScreen(navController: NavHostController) {
+    val repository = HeroesRepositoryImplementation()
+    val heroes = remember { mutableStateOf<List<com.example.marvel_app.data.Superhero>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        val fetchedHeroes = withContext(Dispatchers.IO) { repository.getAllHeroes() }
+        heroes.value = fetchedHeroes
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -103,7 +117,7 @@ fun HeroListScreen(navController: NavHostController) {
                 contentPadding = PaddingValues(horizontal = 32.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
             ) {
-                items(heroesList) { hero ->
+                items(heroes.value) { hero ->
                     HeroItem(hero = hero) {
                         navController.navigate("heroDetails/${hero.id}")
                     }
@@ -114,7 +128,7 @@ fun HeroListScreen(navController: NavHostController) {
 }
 
 @Composable
-fun HeroItem(hero: Hero, onClick: () -> Unit) {
+fun HeroItem(hero: com.example.marvel_app.data.Superhero, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .height(600.dp)
@@ -123,7 +137,7 @@ fun HeroItem(hero: Hero, onClick: () -> Unit) {
             .clip(RoundedCornerShape(8.dp))
     ) {
         AsyncImage(
-            model = hero.url,
+            model = hero.imageUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
@@ -142,14 +156,21 @@ fun HeroItem(hero: Hero, onClick: () -> Unit) {
 
 @Composable
 fun HeroDetailScreen(heroId: Int, navController: NavHostController) {
-    val hero = heroesList.find { it.id == heroId }
-    hero?.let {
+    val repository = HeroesRepositoryImplementation()
+    val hero = remember { mutableStateOf<com.example.marvel_app.data.Superhero?>(null) }
+
+    LaunchedEffect(heroId) {
+        val fetchedHero = withContext(Dispatchers.IO) { repository.getHeroById(heroId.toString()) }
+        hero.value = fetchedHero
+    }
+
+    hero.value?.let {
         Box(
             modifier = Modifier
                 .fillMaxSize()
         ) {
             AsyncImage(
-                model = hero.url,
+                model = it.imageUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -174,14 +195,14 @@ fun HeroDetailScreen(heroId: Int, navController: NavHostController) {
                     .padding(16.dp)
             ) {
                 Text(
-                    text = hero.name,
+                    text = it.name,
                     style = MaterialTheme.typography.h4.copy(fontWeight = FontWeight.Bold),
                     color = Color.White,
                     textAlign = TextAlign.Left
                 )
 
                 Text(
-                    text = hero.description,
+                    text = it.description,
                     style = MaterialTheme.typography.body1,
                     color = Color.White,
                     modifier = Modifier.padding(top = 4.dp)
@@ -190,23 +211,3 @@ fun HeroDetailScreen(heroId: Int, navController: NavHostController) {
         }
     }
 }
-data class Hero(
-    val id: Int,
-    val name: String,
-    val description: String,
-    val url: String
-)
-
-val heroesList = listOf(
-    Hero(1, "Deadpool", "Please don't make the super suit green...or animated!",  "https://i.pinimg.com/564x/6f/3a/a5/6f3aa5c8784e60563d787bceab7c8253.jpg"),
-    Hero(2, "Iron Man", "I'M IRON MAN",  "https://i.pinimg.com/564x/64/bc/f8/64bcf8a9ebacf999b23f0248bfa5c69a.jpg"),
-    Hero(3, "Spider Man", "In iron suit",  "https://i.pinimg.com/564x/aa/0f/31/aa0f316bc2b6571a1b8c20d4ad6766a9.jpg")
-)
-
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    MarvelApp()
-}
-
-
